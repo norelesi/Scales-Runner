@@ -113,10 +113,9 @@
     <div class="author-name">MADE BY NORELESI</div>
   </div>
 </div>
-
 <script>
   "use strict";
-  let synth, reverb, filter, lfo, waveAn, loop, isPlaying = false, currentSeq = [], step = 0;
+  let synth, reverb, filter, lfo, waveAn, loop, isPlaying = false, currentSeq = [], step = 0, currentPlayedNote = null;
   const chromatic = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const circleOrder = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"];
   const noteElements = {}, keyElements = {};
@@ -180,12 +179,35 @@
   const kWrap = document.getElementById('keyboard-wrap');
   const pianoLayout = [ {n:"C",b:0},{n:"C#",b:1},{n:"D",b:0},{n:"D#",b:1},{n:"E",b:0},{n:"F",b:0},{n:"F#",b:1},{n:"G",b:0},{n:"G#",b:1},{n:"A",b:0},{n:"A#",b:1},{n:"B",b:0},{n:"C",b:0},{n:"C#",b:1},{n:"D",b:0},{n:"D#",b:1},{n:"E",b:0},{n:"F",b:0} ];
   pianoLayout.forEach((note, i) => {
-    const key = document.createElement('div'); const fullNote = note.n + (i < 12 ? 4 : 5);
+    const key = document.createElement('div'); 
+    const fullNote = note.n + (i < 12 ? 4 : 5);
     key.className = `key ${note.b ? 'black' : 'white'}`;
     if(note.b) key.style.left = (kWrap.querySelectorAll('.white').length * (100/11)) + "%";
-    kWrap.appendChild(key); keyElements[fullNote] = key;
-    key.onpointerdown = async (e) => { e.preventDefault(); if(!isPlaying) { await checkInit(); synth.triggerAttack(fullNote); highlight(fullNote, true); noteDisp.textContent = fullNote; } };
-    key.onpointerup = key.onpointerleave = () => { if(!isPlaying && synth) { synth.triggerRelease(); highlight(fullNote, false); } };
+    kWrap.appendChild(key); 
+    keyElements[fullNote] = key;
+
+    key.onpointerdown = async (e) => {
+      e.preventDefault();
+      if (!isPlaying) {
+        await checkInit();
+        if (currentPlayedNote && currentPlayedNote !== fullNote) {
+          synth.triggerRelease();
+          highlight(currentPlayedNote, false);
+        }
+        synth.triggerAttack(fullNote);
+        highlight(fullNote, true);
+        noteDisp.textContent = fullNote;
+        currentPlayedNote = fullNote;
+      }
+    };
+
+    key.onpointerup = key.onpointerleave = () => {
+      if (!isPlaying && synth && currentPlayedNote === fullNote) {
+        synth.triggerRelease();
+        highlight(fullNote, false);
+        currentPlayedNote = null;
+      }
+    };
   });
 
   const mSel = document.getElementById('modeSelect'), sSel = document.getElementById('scaleSelect'), rSel = document.getElementById('rootSelect');
@@ -204,7 +226,14 @@
     filter = new Tone.Filter(1500, "lowpass").connect(reverb);
     lfo = new Tone.LFO("4n", 400, 4000).connect(filter.frequency);
     lfo.amplitude.value = parseFloat(wobbleSlider.value); lfo.start();
-    synth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.2 }, volume: -10 }).connect(filter);
+    synth = new Tone.MonoSynth({ 
+      oscillator: { type: "sawtooth" }, 
+      envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.2 }, 
+      volume: -10 
+    }).connect(filter);
+
+    synth.triggerAttack("C4", undefined, 0);
+
     waveAn = new Tone.Analyser("waveform", 64); filter.connect(waveAn);
     loop = new Tone.Loop(time => {
       let n = currentSeq[step % currentSeq.length];
@@ -238,14 +267,18 @@
       [4, 5].forEach(oct => { if(keyElements[name+oct]) keyElements[name+oct].classList.add(name.includes('#')?'key-available-b':'key-available-w'); });
     });
 
-    const chWrap = document.getElementById('chords-wrap'); chWrap.innerHTML = "";
+    const chWrap = document.getElementById('chords-wrap'); 
+    chWrap.innerHTML = "";
     if(scaleNotes.length >= 3) {
       for(let i=0; i<Math.min(scaleNotes.length, 7); i++) {
         const r = scaleNotes[i], t = scaleNotes[(i+2)%scaleNotes.length], q = scaleNotes[(i+4)%scaleNotes.length];
         const d3 = (t.midi - r.midi + 12) % 12, d5 = (q.midi - r.midi + 12) % 12;
         let type = (d3===4 && d5===7)?"Maj":(d3===3 && d5===7)?"min":(d3===3 && d5===6)?"dim":"sus";
-        const card = document.createElement('div'); card.className = "chord-card";
-        card.innerHTML = `${i+1}<span>${r.name}${type}</span>`; chWrap.appendChild(card);
+        
+        const card = document.createElement('div'); 
+        card.className = "chord-card";
+        card.innerHTML = (i+1) + '<span>' + r.name + type + '</span>';
+        chWrap.appendChild(card);
       }
     }
   }
@@ -265,8 +298,21 @@
 
   powerBtn.onclick = async () => {
     await checkInit();
-    if(!isPlaying) { generateMelody(); Tone.Transport.start(); isPlaying = true; powerBtn.textContent = "STOP"; powerBtn.className = "btn-off"; } 
-    else { Tone.Transport.stop(); synth.triggerRelease(); isPlaying = false; powerBtn.textContent = "START"; powerBtn.className = "btn-on"; }
+    if(!isPlaying) { 
+      generateMelody(); 
+      Tone.Transport.start(); 
+      isPlaying = true; 
+      powerBtn.textContent = "STOP"; 
+      powerBtn.className = "btn-off"; 
+    } 
+    else { 
+      Tone.Transport.stop(); 
+      synth.triggerRelease(); 
+      isPlaying = false; 
+      powerBtn.textContent = "START"; 
+      powerBtn.className = "btn-on"; 
+      currentPlayedNote = null;
+    }
   };
 
   genBtn.onclick = async () => { await checkInit(); generateMelody(); if(!isPlaying) powerBtn.click(); };
@@ -274,8 +320,14 @@
 
   function highlight(note, active) {
     let pure = note.replace(/[0-9]/g, '');
-    if(active) { if(noteElements[pure]) noteElements[pure].classList.add('note-active'); if(keyElements[note]) keyElements[note].classList.add('key-active'); } 
-    else { if(noteElements[pure]) noteElements[pure].classList.remove('note-active'); if(keyElements[note]) keyElements[note].classList.remove('key-active'); }
+    if(active) { 
+      if(noteElements[pure]) noteElements[pure].classList.add('note-active'); 
+      if(keyElements[note]) keyElements[note].classList.add('key-active'); 
+    } 
+    else { 
+      if(noteElements[pure]) noteElements[pure].classList.remove('note-active'); 
+      if(keyElements[note]) keyElements[note].classList.remove('key-active'); 
+    }
   }
 
   mSel.onchange = () => { sSel.value = "none"; updateVisuals(); if(isPlaying) generateMelody(); };
@@ -286,13 +338,43 @@
   wobbleSlider.oninput = (e) => { if(lfo) lfo.amplitude.value = e.target.value; wobbleVal.textContent = Math.round(e.target.value*100)+"%"; };
 
   function draw() {
-    requestAnimationFrame(draw); if(!waveAn) return;
-    const ctx = waveCanvas.getContext('2d'); const data = waveAn.getValue();
-    ctx.clearRect(0,0,waveCanvas.width,waveCanvas.height); ctx.strokeStyle = "#0ff"; ctx.beginPath();
+    requestAnimationFrame(draw); 
+    if(!waveAn) return;
+    const ctx = waveCanvas.getContext('2d'); 
+    const data = waveAn.getValue();
+    ctx.clearRect(0,0,waveCanvas.width,waveCanvas.height); 
+    ctx.strokeStyle = "#0ff"; 
+    ctx.beginPath();
     const slice = waveCanvas.width / data.length;
-    for(let i=0; i<data.length; i++){ const x = i * slice; const y = (data[i]+1.1)/2.2 * waveCanvas.height; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    for(let i=0; i<data.length; i++){ 
+      const x = i * slice; 
+      const y = (data[i]+1.1)/2.2 * waveCanvas.height; 
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); 
+    }
     ctx.stroke();
   }
+
+  // ==================== FIX SUONO CORROTTO DOPO CAMBIO SCHEDA / MINIMIZZA ====================
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      // Forza la ripresa del contesto audio (Chrome lo sospende in background)
+      if (Tone.context.state !== 'running') {
+        await Tone.context.resume();
+      }
+      await checkInit();
+      
+      // Se la sequenza era in riproduzione, riavviala
+      if (isPlaying && Tone.Transport.state !== 'started') {
+        Tone.Transport.start();
+      }
+      
+      // Warm-up silenzioso per evitare click/distorsione
+      if (synth) {
+        synth.triggerAttack("C4", undefined, 0);
+      }
+    }
+  });
+
   updateVisuals();
 </script>
 </body>
