@@ -49,7 +49,7 @@
     .note-available { color: #008888; text-shadow: 0 0 5px var(--neon); }
     .note-active { color: var(--yellow) !important; transform: translate(-50%, -50%) scale(1.3); z-index: 10; text-shadow: 0 0 10px var(--yellow); }
 
-    #keyboard-wrap { width: 100%; height: 100px; margin-bottom: 8px; display: flex; position: relative; background: #000; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+    #keyboard-wrap { width: 100%; height: 120px; margin-bottom: 8px; display: flex; position: relative; background: #000; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
     .key { flex: 1; border-right: 1px solid #000; position: relative; transition: background 0.05s; cursor: pointer; }
     .key.white { background: #eee; z-index: 1; }
     .key.black { background: #111; height: 62%; width: 7.2%; position: absolute; z-index: 2; margin-left: -3.6%; border: 1px solid #444; border-radius: 0 0 4px 4px; }
@@ -66,13 +66,9 @@
     .label-row { display: flex; justify-content: space-between; font-size: 0.45rem; color: #666; margin-bottom: 2px; }
     input[type=range] { width: 100%; height: 10px; accent-color: var(--pink); cursor: pointer; }
 
-    #waveCanvas { width: 100%; height: 35px; background: #000; border-radius: 6px; border: 1px solid #1a1a1a; margin-top: 5px; }
-
     .signature-box { text-align: center; margin-top: 12px; padding-bottom: 2px; }
     .brand-name { font-size: 0.8rem; letter-spacing: 4px; color: var(--neon); font-weight: bold; text-transform: uppercase; }
     .author-name { font-size: 0.4rem; letter-spacing: 2px; color: var(--pink); opacity: 0.7; margin-top: 1px; text-transform: uppercase; }
-    
-    .disabled { opacity: 0.4; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -105,7 +101,6 @@
     <div class="control-group"><div class="label-row"><span>⚡ BPM</span><span id="bpmVal">110</span></div><input type="range" id="bpmSlider" min="60" max="180" value="110"></div>
     <div class="control-group"><div class="label-row"><span>🌌 REVERB</span><span id="fxVal">0%</span></div><input type="range" id="fxSlider" min="0" max="0.6" step="0.01" value="0"></div>
     <div class="control-group"><div class="label-row"><span>🌀 WOBBLE</span><span id="wobbleVal">0%</span></div><input type="range" id="wobbleSlider" min="0" max="1" step="0.01" value="0"></div>
-    <canvas id="waveCanvas"></canvas>
   </div>
 
   <div class="signature-box">
@@ -115,7 +110,7 @@
 </div>
 <script>
   "use strict";
-  let synth, reverb, filter, lfo, waveAn, loop, isPlaying = false, currentSeq = [], step = 0, currentPlayedNote = null;
+  let synth, reverb, filter, lfo, loop, isPlaying = false, currentSeq = [], step = 0, currentPlayedNote = null;
   const chromatic = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const circleOrder = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"];
   const noteElements = {}, keyElements = {};
@@ -222,32 +217,40 @@
 
   async function initAudio() {
     const limiter = new Tone.Limiter(-1).toDestination();
-    reverb = new Tone.Freeverb({ roomSize: 0.7, wet: parseFloat(fxSlider.value) }).connect(limiter);
+    reverb = new Tone.Freeverb({ roomSize: 0.7, wet: parseFloat(document.getElementById('fxSlider').value) }).connect(limiter);
     filter = new Tone.Filter(1500, "lowpass").connect(reverb);
     lfo = new Tone.LFO("4n", 400, 4000).connect(filter.frequency);
-    lfo.amplitude.value = parseFloat(wobbleSlider.value); lfo.start();
+    lfo.amplitude.value = parseFloat(document.getElementById('wobbleSlider').value); 
+    lfo.start();
     synth = new Tone.MonoSynth({ 
       oscillator: { type: "sawtooth" }, 
-      envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.2 }, 
-      volume: -10 
+      envelope: { attack: 0.04, decay: 0.2, sustain: 0.4, release: 0.8 }, 
+      volume: -3
     }).connect(filter);
 
     synth.triggerAttack("C4", undefined, 0);
 
-    waveAn = new Tone.Analyser("waveform", 64); filter.connect(waveAn);
     loop = new Tone.Loop(time => {
       let n = currentSeq[step % currentSeq.length];
-      if(n) { synth.triggerAttackRelease(n, "16n", time); Tone.Draw.schedule(() => { noteDisp.textContent = n; highlight(n, true); }, time); Tone.Draw.schedule(() => { highlight(n, false); }, time + 0.1); }
+      if(n) { 
+        synth.triggerAttackRelease(n, "16n", time); 
+        Tone.Draw.schedule(() => { noteDisp.textContent = n; highlight(n, true); }, time); 
+        Tone.Draw.schedule(() => { highlight(n, false); }, time + 0.1); 
+      }
       step++;
     }, "8n").start(0);
-    requestAnimationFrame(draw);
   }
 
   function generateMelody() {
     const rootIdx = parseInt(rSel.value);
     let intervals = mSel.value !== "none" ? modesDb[mSel.value].i : (sSel.value !== "none" ? scalesDb[sSel.value].i : [0,2,4,5,7,9,11]);
     const pool = [];
-    [48, 60].forEach(octIdx => { intervals.forEach(d => { let n = Tone.Frequency(rootIdx + octIdx + d, "midi").toNote(); if(keyElements[n]) pool.push(n); }); });
+    [48, 60].forEach(octIdx => { 
+      intervals.forEach(d => { 
+        let n = Tone.Frequency(rootIdx + octIdx + d, "midi").toNote(); 
+        if(keyElements[n]) pool.push(n); 
+      }); 
+    });
     currentSeq = Array.from({ length: 16 }, (v, i) => (i % 4 === 0 || Math.random() > 0.5) ? pool[Math.floor(Math.random() * pool.length)] : null);
     step = 0;
   }
@@ -257,14 +260,17 @@
     Object.values(keyElements).forEach(el => el.classList.remove('key-available-w', 'key-available-b'));
     const root = parseInt(rSel.value);
     let data = (mSel.value !== "none") ? modesDb[mSel.value] : (sSel.value !== "none" ? scalesDb[sSel.value] : modesDb["Ionico"]);
-    feelDisp.textContent = data.f;
+    document.getElementById('feelDisp').textContent = data.f;
     
     let scaleNotes = [];
     data.i.forEach(interval => {
-      const midi = (root + interval) % 12; const name = chromatic[midi];
+      const midi = (root + interval) % 12; 
+      const name = chromatic[midi];
       scaleNotes.push({ name, midi });
       if(noteElements[name]) noteElements[name].classList.add('note-available');
-      [4, 5].forEach(oct => { if(keyElements[name+oct]) keyElements[name+oct].classList.add(name.includes('#')?'key-available-b':'key-available-w'); });
+      [4, 5].forEach(oct => { 
+        if(keyElements[name+oct]) keyElements[name+oct].classList.add(name.includes('#')?'key-available-b':'key-available-w'); 
+      });
     });
 
     const chWrap = document.getElementById('chords-wrap'); 
@@ -274,7 +280,6 @@
         const r = scaleNotes[i], t = scaleNotes[(i+2)%scaleNotes.length], q = scaleNotes[(i+4)%scaleNotes.length];
         const d3 = (t.midi - r.midi + 12) % 12, d5 = (q.midi - r.midi + 12) % 12;
         let type = (d3===4 && d5===7)?"Maj":(d3===3 && d5===7)?"min":(d3===3 && d5===6)?"dim":"sus";
-        
         const card = document.createElement('div'); 
         card.className = "chord-card";
         card.innerHTML = (i+1) + '<span>' + r.name + type + '</span>';
@@ -292,7 +297,6 @@
   const bpmVal = document.getElementById('bpmVal');
   const fxVal = document.getElementById('fxVal');
   const wobbleVal = document.getElementById('wobbleVal');
-  const waveCanvas = document.getElementById('waveCanvas');
   const noteDisp = document.getElementById('noteDisp');
   const feelDisp = document.getElementById('feelDisp');
 
@@ -307,7 +311,7 @@
     } 
     else { 
       Tone.Transport.stop(); 
-      synth.triggerRelease(); 
+      if(synth) synth.triggerRelease(); 
       isPlaying = false; 
       powerBtn.textContent = "START"; 
       powerBtn.className = "btn-on"; 
@@ -315,7 +319,11 @@
     }
   };
 
-  genBtn.onclick = async () => { await checkInit(); generateMelody(); if(!isPlaying) powerBtn.click(); };
+  genBtn.onclick = async () => { 
+    await checkInit(); 
+    generateMelody(); 
+    if(!isPlaying) powerBtn.click(); 
+  };
   restoreBtn.onclick = () => location.reload();
 
   function highlight(note, active) {
@@ -333,42 +341,27 @@
   mSel.onchange = () => { sSel.value = "none"; updateVisuals(); if(isPlaying) generateMelody(); };
   sSel.onchange = () => { mSel.value = "none"; updateVisuals(); if(isPlaying) generateMelody(); };
   rSel.onchange = () => { updateVisuals(); if(isPlaying) generateMelody(); };
-  bpmSlider.oninput = (e) => { Tone.Transport.bpm.value = e.target.value; bpmVal.textContent = e.target.value; };
-  fxSlider.oninput = (e) => { if(reverb) reverb.wet.value = e.target.value; fxVal.textContent = Math.round(e.target.value*100)+"%"; };
-  wobbleSlider.oninput = (e) => { if(lfo) lfo.amplitude.value = e.target.value; wobbleVal.textContent = Math.round(e.target.value*100)+"%"; };
+  bpmSlider.oninput = (e) => { 
+    Tone.Transport.bpm.value = e.target.value; 
+    bpmVal.textContent = e.target.value; 
+  };
+  fxSlider.oninput = (e) => { 
+    if(reverb) reverb.wet.value = e.target.value; 
+    fxVal.textContent = Math.round(e.target.value*100)+"%"; 
+  };
+  wobbleSlider.oninput = (e) => { 
+    if(lfo) lfo.amplitude.value = e.target.value; 
+    wobbleVal.textContent = Math.round(e.target.value*100)+"%"; 
+  };
 
-  function draw() {
-    requestAnimationFrame(draw); 
-    if(!waveAn) return;
-    const ctx = waveCanvas.getContext('2d'); 
-    const data = waveAn.getValue();
-    ctx.clearRect(0,0,waveCanvas.width,waveCanvas.height); 
-    ctx.strokeStyle = "#0ff"; 
-    ctx.beginPath();
-    const slice = waveCanvas.width / data.length;
-    for(let i=0; i<data.length; i++){ 
-      const x = i * slice; 
-      const y = (data[i]+1.1)/2.2 * waveCanvas.height; 
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); 
-    }
-    ctx.stroke();
-  }
-
-  // ==================== FIX SUONO CORROTTO DOPO CAMBIO SCHEDA / MINIMIZZA ====================
+  // Fix per cambio scheda / background
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
-      // Forza la ripresa del contesto audio (Chrome lo sospende in background)
-      if (Tone.context.state !== 'running') {
-        await Tone.context.resume();
-      }
+      if (Tone.context.state !== 'running') await Tone.context.resume();
       await checkInit();
-      
-      // Se la sequenza era in riproduzione, riavviala
       if (isPlaying && Tone.Transport.state !== 'started') {
         Tone.Transport.start();
       }
-      
-      // Warm-up silenzioso per evitare click/distorsione
       if (synth) {
         synth.triggerAttack("C4", undefined, 0);
       }
