@@ -11,7 +11,7 @@
   <title>SCALES RUNNER</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   <style>
-    :root { --neon: #0ff; --pink: #f0f; --bg: #050505; --red: #ff4444; --green: #00ff66; --yellow: #ffcc00; }
+    :root { --neon: #0ff; --pink: #f0f; --bg: #050505; --red: #ff4444; --green: #00ff66; --yellow: #ffcc00; --orange: #ff8800; }
     * { 
       box-sizing: border-box; 
       user-select: none; 
@@ -22,17 +22,19 @@
     body { margin: 0; height: 100vh; overflow: hidden; background: var(--bg); color: var(--neon); display: flex; justify-content: center; align-items: center; }
     
     .synth-case { 
-      width: 95%; max-width: 480px; height: auto; max-height: 98vh; padding: 10px; 
+      width: 95%; max-width: 480px; padding: 10px; 
       background: #0a0a0a; border: 2px solid var(--neon); border-radius: 15px; 
       display: flex; flex-direction: column; position: relative;
       box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+      z-index: 10;
     }
 
-    .header-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 5px; }
-    button { padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; border: 1px solid; background: transparent; font-size: 0.65rem; }
+    .header-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 5px; }
+    button { padding: 10px 5px; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; border: 1px solid; background: #111; font-size: 0.6rem; z-index: 20; position: relative; }
     .btn-off { border-color: var(--red); color: var(--red); }
     .btn-on { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px var(--green); }
     #genBtn { border-color: var(--pink); color: var(--pink); }
+    #restoreBtn { border-color: var(--orange); color: var(--orange); }
 
     .display-box { background: #000; border: 1px solid var(--neon); border-radius: 8px; padding: 5px; text-align: center; margin-bottom: 5px; }
     .note-val { font-size: 1.1rem; color: var(--neon); text-shadow: 0 0 8px var(--neon); height: 1.3rem; }
@@ -48,11 +50,10 @@
     .note-available { color: #008888; text-shadow: 0 0 5px var(--neon); }
     .note-active { color: var(--yellow) !important; transform: translate(-50%, -50%) scale(1.3); z-index: 10; text-shadow: 0 0 10px var(--yellow); }
 
-    #keyboard-wrap { width: 100%; height: 105px; margin-bottom: 8px; display: flex; position: relative; background: #000; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+    #keyboard-wrap { width: 100%; height: 100px; margin-bottom: 8px; display: flex; position: relative; background: #000; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
     .key { flex: 1; border-right: 1px solid #000; position: relative; transition: background 0.05s; cursor: pointer; }
     .key.white { background: #eee; z-index: 1; }
     .key.black { background: #111; height: 62%; width: 7.2%; position: absolute; z-index: 2; margin-left: -3.6%; border: 1px solid #444; border-radius: 0 0 4px 4px; }
-    
     .key-available-w { background: #aadddd !important; }
     .key-available-b { background: #006666 !important; }
     .key-active { background: var(--yellow) !important; z-index: 3; box-shadow: inset 0 0 20px rgba(0,0,0,0.6); }
@@ -66,20 +67,19 @@
     .label-row { display: flex; justify-content: space-between; font-size: 0.45rem; color: #666; margin-bottom: 2px; }
     input[type=range] { width: 100%; height: 10px; accent-color: var(--pink); cursor: pointer; }
 
-    #waveCanvas { width: 100%; height: 40px; background: #000; border-radius: 6px; border: 1px solid #1a1a1a; margin-top: 5px; }
-    
-    .signature-box { text-align: center; margin-top: 10px; padding-bottom: 2px; }
-    .brand-name { font-size: 0.8rem; letter-spacing: 4px; color: var(--neon); font-weight: bold; text-transform: uppercase; }
-    .author-name { font-size: 0.4rem; letter-spacing: 2px; color: var(--pink); opacity: 0.7; margin-top: 1px; }
-    .disabled { opacity: 0.6; pointer-events: none; }
+    #waveCanvas { width: 100%; height: 35px; background: #000; border-radius: 6px; border: 1px solid #1a1a1a; margin-top: 5px; }
+    .signature-box { text-align: center; margin-top: 5px; }
+    .brand-name { font-size: 0.7rem; color: var(--neon); font-weight: bold; }
+    .disabled { opacity: 0.4; pointer-events: none; }
   </style>
 </head>
 <body>
 
 <div class="synth-case">
   <div class="header-btns">
-    <button id="powerBtn" class="btn-on">START SEQ</button>
+    <button id="powerBtn" class="btn-on">START</button>
     <button id="genBtn">GENERATE</button>
+    <button id="restoreBtn">RESTORE</button>
   </div>
 
   <div class="display-box">
@@ -101,70 +101,54 @@
 
   <div class="slider-block">
     <div class="control-group"><div class="label-row"><span>⚡ BPM</span><span id="bpmVal">110</span></div><input type="range" id="bpmSlider" min="60" max="180" value="110"></div>
-    <div class="control-group"><div class="label-row"><span>🌌 REVERB</span><span id="fxVal">0%</span></div><input type="range" id="fxSlider" min="0" max="0.4" step="0.01" value="0"></div>
+    <div class="control-group"><div class="label-row"><span>🌌 REVERB</span><span id="fxVal">0%</span></div><input type="range" id="fxSlider" min="0" max="0.6" step="0.01" value="0"></div>
     <div class="control-group"><div class="label-row"><span>🌀 WOBBLE</span><span id="wobbleVal">0%</span></div><input type="range" id="wobbleSlider" min="0" max="1" step="0.01" value="0"></div>
-    
     <canvas id="waveCanvas"></canvas>
   </div>
 
   <div class="signature-box">
-    <div class="brand-name">Scales Runner</div>
-    <div class="author-name">MADE BY NORELESI</div>
+    <div class="brand-name">MADE BY NORELESI</div>
   </div>
 </div>
 
 <script>
   "use strict";
-  let synth, reverb, filter, lfo, waveAn, loop, isPlaying = false, currentSeq = [], step = 0, drawSkip = 0;
+  let synth, reverb, filter, lfo, waveAn, loop, isPlaying = false, currentSeq = [], step = 0;
   const chromatic = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const circleOrder = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"];
   const noteElements = {}, keyElements = {};
 
   const modesDb = {
     "Ionico": { i: [0,2,4,5,7,9,11], f: "I grado. Solare, stabile e maestoso." },
-    "Eolio": { i: [0,2,3,5,7,8,10], f: "VI grado. Triste, narrativo e malinconico." },
-    "Dorico": { i: [0,2,3,5,7,9,10], f: "II grado. Sapore Jazz, Folk e misterioso." },
-    "Frigio": { i: [0,1,3,5,7,8,10], f: "III grado. Oscurità spagnola, teso e cupo." },
-    "Lidio": { i: [0,2,4,6,7,9,11], f: "IV grado. Celestiale, sognante e magico." },
-    "Misolidio": { i: [0,2,4,5,7,9,10], f: "V grado. Gusto Blues, Rock e solido." },
-    "Locrio": { i: [0,1,3,5,6,8,10], f: "VII grado. Estremamente instabile e dissonante." },
-    "Lidio Dominante": { i: [0,2,4,6,7,9,10], f: "IV grado Min. Melodica. Fusion e moderno." },
-    "Superlocrio": { i: [0,1,3,4,6,8,10], f: "VII grado Min. Melodica. Tensione massima." },
-    "Mixolydian b6": { i: [0,2,4,5,7,8,10], f: "V grado Min. Melodica. Malinconia sognante." },
-    "Dorian b2": { i: [0,1,3,5,7,9,10], f: "II grado Min. Melodica. Sofisticato e jazz." },
-    "Lidio Aumentato": { i: [0,2,4,6,8,9,11], f: "III grado Min. Melodica. Astratto e aperto." },
-    "Locrio #2": { i: [0,2,3,5,6,8,10], f: "VI grado Min. Melodica. Mezzo-diminuito." },
-    "Dorian #4": { i: [0,2,3,6,7,9,10], f: "IV grado Min. Armonica. Sapore rumeno." },
-    "Frigio Maggiore": { i: [0,1,4,5,7,8,10], f: "V grado Min. Armonica. Flamenco e passione." },
-    "Lidio #2": { i: [0,3,4,6,7,9,11], f: "VI grado Min. Armonica. Esotico e luminoso." }
+    "Eolio": { i: [0,2,3,5,7,8,10], f: "VI grado. Triste e malinconico." },
+    "Dorico": { i: [0,2,3,5,7,9,10], f: "II grado. Sapore Jazz e Folk." },
+    "Frigio": { i: [0,1,3,5,7,8,10], f: "III grado. Oscurità tesa e cupa." },
+    "Lidio": { i: [0,2,4,6,7,9,11], f: "IV grado. Celestiale e sognante." },
+    "Misolidio": { i: [0,2,4,5,7,9,10], f: "V grado. Gusto Blues e Rock." },
+    "Locrio": { i: [0,1,3,5,6,8,10], f: "VII grado. Instabile e dissonante." },
+    "Lidio Dominante": { i: [0,2,4,6,7,9,10], f: "Moderno e Fusion." },
+    "Superlocrio": { i: [0,1,3,4,6,8,10], f: "Tensione massima Jazz." },
+    "Mixolydian b6": { i: [0,2,4,5,7,8,10], f: "Malinconia sognante." }
   };
 
   const scalesDb = {
-    "Maggiore": { i: [0,2,4,5,7,9,11], f: "La base della musica occidentale." },
-    "Minore Naturale": { i: [0,2,3,5,7,8,10], f: "L'essenza del sentimento malinconico classico." },
-    "Napoletana Maggiore": { i: [0,1,3,5,7,9,11], f: "Rara e nobile. Sapore mediterraneo aperto." },
-    "Napoletana Minore": { i: [0,1,3,5,7,8,11], f: "Drammatica. La Napoli classica e scura." },
-    "Minore Armonica": { i: [0,2,3,5,7,8,11], f: "Gusto neoclassico, drammatico e horror." },
-    "Minore Melodica": { i: [0,2,3,5,7,9,11], f: "La scala raffinata del Jazz moderno." },
-    "Doppia Armonica (Bizantina)": { i: [0,1,4,5,7,8,11], f: "Ipnotica, regale e sapore arabo." },
-    "Ungherese Minore": { i: [0,2,3,6,7,8,11], f: "Passionale e zingaresca. Molto espressiva." },
-    "Persiana": { i: [0,1,4,5,6,8,11], f: "Mistero assoluto e profondo d'oriente." },
-    "Giapponese (Akebono)": { i: [0,2,3,7,8], f: "Meditativa, Zen, sapore di natura." },
-    "Giapponese (In-Sen)": { i: [0,1,5,7,10], f: "Suono tradizionale del Koto." },
-    "Cinese": { i: [0,2,4,7,9], f: "Pentatonica Maggiore. Antica e pura." },
-    "Pentatonica Minore": { i: [0,3,5,7,10], f: "Rock, Blues, universale." },
-    "Pentatonica Blues": { i: [0,3,5,6,7,10], f: "Il colore sporco e viscerale del Blues." },
-    "Bebop Maggiore": { i: [0,2,4,5,7,8,9,11], f: "Swing e virtuosismo Jazz anni '40." },
-    "Bebop Dominante": { i: [0,2,4,5,7,9,10,11], f: "Linguaggio fluido di Charlie Parker." },
-    "Diminuita (T-S)": { i: [0,2,3,5,6,8,9,11], f: "Simmetria tesa. Atmosfere da Film Noir." },
-    "Esatonale": { i: [0,2,4,6,8,10], f: "Onirica, fluttuante e senza centro." },
-    "Prometeo": { i: [0,2,4,6,9,10], f: "Scriabin. Mistica e sapore cosmico." },
-    "Enigmatica": { i: [0,1,4,6,8,10,11], f: "Verdi. Sperimentale e oltre le regole." },
-    "Otto Toni (S-T)": { i: [0,1,3,4,6,7,9,10], f: "Simmetrica, scura e molto tesa." },
-    "Flamenco": { i: [0,1,4,5,7,8,10,11], f: "Danza, fuoco e orgoglio andaluso." },
-    "Araba": { i: [0,2,4,5,6,8,10], f: "Atmosfere calde mediorientali." },
-    "Indiana (Todi)": { i: [0,1,3,6,7,8,11], f: "Spirituale, profonda e devozionale." },
-    "Oltretomba": { i: [0,1,3,4,6,7,9,10], f: "Sinistra, aliena e inquietante." }
+    "Maggiore": { i: [0,2,4,5,7,9,11], f: "La base della musica." },
+    "Minore Naturale": { i: [0,2,3,5,7,8,10], f: "Sentimento malinconico." },
+    "Napoletana Minore": { i: [0,1,3,5,7,8,11], f: "Drammatica e scura." },
+    "Minore Armonica": { i: [0,2,3,5,7,8,11], f: "Gusto neoclassico e drammatico." },
+    "Minore Melodica": { i: [0,2,3,5,7,9,11], f: "Raffinatezza Jazz." },
+    "Doppia Armonica": { i: [0,1,4,5,7,8,11], f: "Regale e sapore arabo." },
+    "Ungherese Minore": { i: [0,2,3,6,7,8,11], f: "Passionale ed esotica." },
+    "Persiana": { i: [0,1,4,5,6,8,11], f: "Mistero d'oriente." },
+    "Giapponese (Akebono)": { i: [0,2,3,7,8], f: "Meditativa e Zen." },
+    "Giapponese (In-Sen)": { i: [0,1,5,7,10], f: "Tradizione Koto." },
+    "Pentatonica Minore": { i: [0,3,5,7,10], f: "Rock e Blues universale." },
+    "Pentatonica Blues": { i: [0,3,5,6,7,10], f: "Colore sporco e viscerale." },
+    "Diminuita (T-S)": { i: [0,2,3,5,6,8,9,11], f: "Atmosfere Film Noir." },
+    "Esatonale": { i: [0,2,4,6,8,10], f: "Onirica e fluttuante." },
+    "Enigmatica": { i: [0,1,4,6,8,10,11], f: "Verdi. Sperimentale." },
+    "Flamenco": { i: [0,1,4,5,7,8,10,11], f: "Danza, fuoco e passione." },
+    "Oltretomba": { i: [0,1,3,4,6,7,9,10], f: "Sinistra e inquietante." }
   };
 
   const cWrap = document.getElementById('circle-wrap');
@@ -182,7 +166,7 @@
     key.className = `key ${note.b ? 'black' : 'white'}`;
     if(note.b) key.style.left = (kWrap.querySelectorAll('.white').length * (100/11)) + "%";
     kWrap.appendChild(key); keyElements[fullNote] = key;
-    key.onpointerdown = async () => { if(!isPlaying) { await Tone.start(); if(!synth) await initAudio(); synth.triggerAttack(fullNote); highlight(fullNote, true); noteDisp.textContent = fullNote; } };
+    key.onpointerdown = async (e) => { e.preventDefault(); if(!isPlaying) { await checkInit(); synth.triggerAttack(fullNote); highlight(fullNote, true); noteDisp.textContent = fullNote; } };
     key.onpointerup = key.onpointerleave = () => { if(!isPlaying && synth) { synth.triggerRelease(); highlight(fullNote, false); } };
   });
 
@@ -190,75 +174,27 @@
   for (let m in modesDb) mSel.add(new Option(m, m));
   for (let s in scalesDb) sSel.add(new Option(s, s));
 
-  function updateVisuals() {
-    Object.values(noteElements).forEach(el => el.classList.remove('note-available'));
-    Object.values(keyElements).forEach(el => el.classList.remove('key-available-w', 'key-available-b'));
-    const root = parseInt(rSel.value);
-    let data = (mSel.value !== "none") ? modesDb[mSel.value] : (sSel.value !== "none" ? scalesDb[sSel.value] : modesDb["Ionico"]);
-    feelDisp.textContent = data.f;
-    let scaleNotes = [];
-    data.i.forEach(interval => {
-      const midi = (root + interval) % 12; const name = chromatic[midi];
-      scaleNotes.push({ name, midi });
-      if(noteElements[name]) noteElements[name].classList.add('note-available');
-      [4, 5].forEach(oct => { if(keyElements[name+oct]) keyElements[name+oct].classList.add(name.includes('#')?'key-available-b':'key-available-w'); });
-    });
-    const chWrap = document.getElementById('chords-wrap'); chWrap.innerHTML = "";
-    if(scaleNotes.length >= 3) {
-      for(let i=0; i<Math.min(scaleNotes.length, 7); i++) {
-        const r = scaleNotes[i], t = scaleNotes[(i+2)%scaleNotes.length], q = scaleNotes[(i+4)%scaleNotes.length];
-        const d3 = (t.midi - r.midi + 12) % 12, d5 = (q.midi - r.midi + 12) % 12;
-        let type = (d3===4 && d5===7)?"Maj":(d3===3 && d5===7)?"min":(d3===3 && d5===6)?"dim":"sus";
-        const card = document.createElement('div'); card.className = "chord-card";
-        card.innerHTML = `${i+1}<span>${r.name}${type}</span>`; chWrap.appendChild(card);
-      }
-    }
+  async function checkInit() {
+    if (Tone.context.state !== 'running') await Tone.start();
+    if (!synth) await initAudio();
   }
 
   async function initAudio() {
-    Tone.context.lookAhead = 0.2; 
-    // AGGIUNTO COMPRESSORE E LIMITER PER PULIRE IL SUONO E ALZARE VOLUME
+    await Tone.start();
+    Tone.context.lookAhead = 0.4;
     const limiter = new Tone.Limiter(-1).toDestination();
-    const compressor = new Tone.Compressor({ threshold: -20, ratio: 4 }).connect(limiter);
-    
-    reverb = new Tone.Freeverb({ roomSize: 0.7, dampening: 3000, wet: 0 }).connect(compressor);
+    reverb = new Tone.Freeverb({ roomSize: 0.7, wet: parseFloat(fxSlider.value) }).connect(limiter);
     filter = new Tone.Filter(1500, "lowpass").connect(reverb);
-    lfo = new Tone.LFO("4n", 400, 4500).connect(filter.frequency);
-    lfo.amplitude.value = 0; lfo.start();
-    
-    // VOLUME ALZATO DA -8 A -3
-    synth = new Tone.MonoSynth({ 
-      oscillator: { type: "sawtooth" }, 
-      envelope: { attack: 0.04, decay: 0.2, sustain: 0.4, release: 0.8 }, 
-      volume: -3 
-    }).connect(filter);
-    
+    lfo = new Tone.LFO("4n", 400, 4000).connect(filter.frequency);
+    lfo.amplitude.value = parseFloat(wobbleSlider.value); lfo.start();
+    synth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.2 }, volume: -10 }).connect(filter);
     waveAn = new Tone.Analyser("waveform", 64); filter.connect(waveAn);
-    
     loop = new Tone.Loop(time => {
       let n = currentSeq[step % currentSeq.length];
-      if(n) { 
-        synth.triggerAttackRelease(n, "16n", time); 
-        Tone.Draw.schedule(() => { 
-          noteDisp.textContent = n; 
-          highlight(n, true); 
-          setTimeout(()=>highlight(n, false), 150); 
-        }, time); 
-      }
+      if(n) { synth.triggerAttackRelease(n, "16n", time); Tone.Draw.schedule(() => { noteDisp.textContent = n; highlight(n, true); }, time); Tone.Draw.schedule(() => { highlight(n, false); }, time + 0.1); }
       step++;
     }, "8n").start(0);
     requestAnimationFrame(draw);
-  }
-
-  function highlight(note, active) {
-    let pure = note.replace(/[0-9]/g, '');
-    if(active) { 
-      if(noteElements[pure]) noteElements[pure].classList.add('note-active'); 
-      if(keyElements[note]) keyElements[note].classList.add('key-active'); 
-    } else { 
-      if(noteElements[pure]) noteElements[pure].classList.remove('note-active'); 
-      if(keyElements[note]) keyElements[note].classList.remove('key-active'); 
-    }
   }
 
   function generateMelody() {
@@ -266,28 +202,38 @@
     let intervals = mSel.value !== "none" ? modesDb[mSel.value].i : (sSel.value !== "none" ? scalesDb[sSel.value].i : [0,2,4,5,7,9,11]);
     const pool = [];
     [48, 60].forEach(octIdx => { intervals.forEach(d => { let n = Tone.Frequency(rootIdx + octIdx + d, "midi").toNote(); if(keyElements[n]) pool.push(n); }); });
-    currentSeq = Array.from({ length: 32 }, (v, i) => {
-      if (i === 0 || i === 16) return pool[0]; 
-      if (Math.random() > 0.65) return null;
-      return pool[Math.floor(Math.random() * pool.length)];
-    });
+    currentSeq = Array.from({ length: 16 }, (v, i) => (i % 4 === 0 || Math.random() > 0.5) ? pool[Math.floor(Math.random() * pool.length)] : null);
     step = 0;
   }
 
   powerBtn.onclick = async () => {
-    if(!isPlaying) {
-      await Tone.start(); if(!synth) await initAudio();
-      Tone.Transport.position = 0;
-      Tone.Transport.start(); isPlaying = true; powerBtn.textContent = "STOP SEQ"; powerBtn.className = "btn-off";
-      kWrap.classList.add('disabled'); generateMelody();
-    } else {
-      Tone.Transport.stop(); if(synth) synth.triggerRelease(); isPlaying = false; powerBtn.textContent = "START SEQ"; powerBtn.className = "btn-on";
-      kWrap.classList.remove('disabled');
-      step = 0;
-    }
+    await checkInit();
+    if(!isPlaying) { generateMelody(); Tone.Transport.start(); isPlaying = true; powerBtn.textContent = "STOP"; powerBtn.className = "btn-off"; } 
+    else { Tone.Transport.stop(); synth.triggerRelease(); isPlaying = false; powerBtn.textContent = "START"; powerBtn.className = "btn-on"; }
   };
 
-  genBtn.onclick = () => { if(!isPlaying) powerBtn.click(); else generateMelody(); };
+  genBtn.onclick = async () => { await checkInit(); generateMelody(); if(!isPlaying) powerBtn.click(); };
+  restoreBtn.onclick = () => location.reload();
+
+  function highlight(note, active) {
+    let pure = note.replace(/[0-9]/g, '');
+    if(active) { if(noteElements[pure]) noteElements[pure].classList.add('note-active'); if(keyElements[note]) keyElements[note].classList.add('key-active'); } 
+    else { if(noteElements[pure]) noteElements[pure].classList.remove('note-active'); if(keyElements[note]) keyElements[note].classList.remove('key-active'); }
+  }
+
+  function updateVisuals() {
+    Object.values(noteElements).forEach(el => el.classList.remove('note-available'));
+    Object.values(keyElements).forEach(el => el.classList.remove('key-available-w', 'key-available-b'));
+    const root = parseInt(rSel.value);
+    let data = (mSel.value !== "none") ? modesDb[mSel.value] : (sSel.value !== "none" ? scalesDb[sSel.value] : modesDb["Ionico"]);
+    feelDisp.textContent = data.f;
+    data.i.forEach(interval => {
+      const midi = (root + interval) % 12; const name = chromatic[midi];
+      if(noteElements[name]) noteElements[name].classList.add('note-available');
+      [4, 5].forEach(oct => { if(keyElements[name+oct]) keyElements[name+oct].classList.add(name.includes('#')?'key-available-b':'key-available-w'); });
+    });
+  }
+
   mSel.onchange = () => { sSel.value = "none"; updateVisuals(); if(isPlaying) generateMelody(); };
   sSel.onchange = () => { mSel.value = "none"; updateVisuals(); if(isPlaying) generateMelody(); };
   rSel.onchange = () => { updateVisuals(); if(isPlaying) generateMelody(); };
@@ -296,23 +242,14 @@
   wobbleSlider.oninput = (e) => { if(lfo) lfo.amplitude.value = e.target.value; wobbleVal.textContent = Math.round(e.target.value*100)+"%"; };
 
   function draw() {
-    requestAnimationFrame(draw); drawSkip++; if(drawSkip % 2 !== 0) return;
-    const ctx = waveCanvas.getContext('2d'); ctx.clearRect(0,0,waveCanvas.width,waveCanvas.height);
-    if(!waveAn) return; const data = waveAn.getValue(); ctx.strokeStyle = "#0ff"; ctx.lineWidth = 2; ctx.beginPath();
+    requestAnimationFrame(draw); if(!waveAn) return;
+    const ctx = waveCanvas.getContext('2d'); const data = waveAn.getValue();
+    ctx.clearRect(0,0,waveCanvas.width,waveCanvas.height); ctx.strokeStyle = "#0ff"; ctx.beginPath();
     const slice = waveCanvas.width / data.length;
-    for(let i=0; i<data.length; i++){ 
-      const x = i * slice; const y = (data[i]+1.1)/2.2 * waveCanvas.height; 
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); 
-    }
+    for(let i=0; i<data.length; i++){ const x = i * slice; const y = (data[i]+1.1)/2.2 * waveCanvas.height; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
     ctx.stroke();
   }
   updateVisuals();
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
-    });
-  }
 </script>
 </body>
 </html>
