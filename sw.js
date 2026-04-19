@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scales-runner-v1';
+const CACHE_NAME = 'scales-runner-v1.1';
 const ASSETS = [
   './',
   './index.html',
