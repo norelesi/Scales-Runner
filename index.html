@@ -108,6 +108,7 @@
     <div class="author-name">MADE BY NORELESI</div>
   </div>
 </div>
+
 <script>
   "use strict";
   let synth, reverb, filter, lfo, loop, isPlaying = false, currentSeq = [], step = 0, currentPlayedNote = null;
@@ -208,6 +209,60 @@
   const mSel = document.getElementById('modeSelect'), sSel = document.getElementById('scaleSelect'), rSel = document.getElementById('rootSelect');
   for (let m in modesDb) mSel.add(new Option(m, m));
   for (let s in scalesDb) sSel.add(new Option(s, s));
+
+  // --- LOGICA MIDI ---
+  function initMIDI() {
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    }
+  }
+
+  function onMIDISuccess(midiAccess) {
+    const inputs = midiAccess.inputs.values();
+    for (let input of inputs) {
+      input.onmidimessage = getMIDIMessage;
+    }
+    midiAccess.onstatechange = (e) => {
+      if(e.port.type === 'input' && e.port.state === 'connected') {
+         e.port.onmidimessage = getMIDIMessage;
+      }
+    };
+  }
+
+  function onMIDIFailure() { console.warn("MIDI non disponibile"); }
+
+  function getMIDIMessage(message) {
+    const command = message.data[0];
+    const note = message.data[1];
+    const velocity = (message.data.length > 2) ? message.data[2] : 0;
+    const noteName = Tone.Frequency(note, "midi").toNote();
+
+    switch (command & 0xf0) {
+      case 0x90: // noteOn
+        if (velocity > 0) handleMIDIOn(noteName);
+        else handleMIDIOff(noteName);
+        break;
+      case 0x80: // noteOff
+        handleMIDIOff(noteName);
+        break;
+    }
+  }
+
+  async function handleMIDIOn(noteName) {
+    await checkInit();
+    if (synth && !isPlaying) {
+      synth.triggerAttack(noteName);
+      highlight(noteName, true);
+      noteDisp.textContent = noteName;
+    }
+  }
+
+  function handleMIDIOff(noteName) {
+    if (synth && !isPlaying) {
+      synth.triggerRelease();
+      highlight(noteName, false);
+    }
+  }
 
   // Audio Logic
   async function checkInit() {
@@ -354,21 +409,17 @@
     wobbleVal.textContent = Math.round(e.target.value*100)+"%"; 
   };
 
-  // Fix per cambio scheda / background
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
       if (Tone.context.state !== 'running') await Tone.context.resume();
       await checkInit();
-      if (isPlaying && Tone.Transport.state !== 'started') {
-        Tone.Transport.start();
-      }
-      if (synth) {
-        synth.triggerAttack("C4", undefined, 0);
-      }
+      if (isPlaying && Tone.Transport.state !== 'started') Tone.Transport.start();
+      if (synth) synth.triggerAttack("C4", undefined, 0);
     }
   });
 
   updateVisuals();
+  initMIDI();
 </script>
 </body>
 </html>
